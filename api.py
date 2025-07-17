@@ -16,81 +16,61 @@ phylum = get_env_values_to_list(os.getenv('PHYLUM_INCLUDED'))
 languages = get_env_values_to_list(os.getenv('LANGUAGES_INCLUDED'))
 
 
+def execute_api_request(
+        url: str,
+        params: Optional[Dict] = None) -> Optional[Dict]:
+    """
+    Executes the API request to the specified URL with the given parameters.
+    """
+    try:
+        response = requests.get(
+            f"{os.getenv('API_BASE_URL')}{url}",
+            params=params,
+            auth=(os.getenv('API_USERNAME'), os.getenv('API_PASSWORD')),
+            timeout=30
+        )
+        response.raise_for_status()
+        return response.json()
+
+    except requests.exceptions.RequestException as e:
+        print(f"Error retrieving data: {e}")
+        return None
+
+
 def retrieve_species_data(
         dataset_id: int,
         id: int = 1000) -> Optional[Dict]:
     url = (
-        f"{os.getenv('API_BASE_URL')}dataset/{dataset_id}/tree/{id}/children")
+        f"dataset/{dataset_id}/tree/{id}/children")
     print(url)
     params = {
         # 'catalogueKey': 3,
         # 'extinct': True,
         'type': 'PROJECT'
     }
-
-    try:
-        response = requests.get(
-            url,
-            params=params,
-            auth=(os.getenv('API_USERNAME'), os.getenv('API_PASSWORD')),
-            timeout=30
-        )
-        response.raise_for_status()
-        return response.json()
-
-    except requests.exceptions.RequestException as e:
-        print(f"Error retrieving data: {e}")
-        return None
+    return execute_api_request(url, params)
 
 
 def retrieve_nameusage_data(
         dataset_id: int,
         limit: int = 1000,
         offset: int = 0,
-
 ) -> Optional[Dict]:
-    url = f"{os.getenv('API_BASE_URL')}dataset/{dataset_id}/nameusage/search"
-
+    url = f"dataset/{dataset_id}/nameusage/search"
     params = {
         'limit': limit,
         'offset': offset,
         'rank': 'species'
     }
-
-    try:
-        response = requests.get(
-            url,
-            params=params,
-            auth=(os.getenv('API_USERNAME'), os.getenv('API_PASSWORD')),
-            timeout=30
-        )
-        response.raise_for_status()
-        return response.json()
-
-    except requests.exceptions.RequestException as e:
-        print(f"Error retrieving data: {e}")
-        return None
+    return execute_api_request(url, params)
 
 
 def retrieve_species_info(dataset_id: int, species_id: int) -> Any:
-    url = f"{os.getenv('API_BASE_URL')}dataset/{dataset_id}/taxon/{species_id}/info"
-
-    try:
-        response = requests.get(
-            url,
-            auth=(os.getenv('API_USERNAME'), os.getenv('API_PASSWORD')),
-            timeout=30
-        )
-        response.raise_for_status()
-        return response.json()
-
-    except requests.exceptions.RequestException as e:
-        print(f"Error retrieving data: {e}")
-        return None
+    url = f"dataset/{dataset_id}/taxon/{species_id}/info"
+    return execute_api_request(url)
 
 
-def parse_nameusage_results(dataset_id: int, data: Dict) -> List[
-    Dict]:
+def parse_nameusage_results(dataset_id: int, data: Dict) -> List[Dict]:
     if not data or 'result' not in data:
         return []
 
@@ -232,5 +212,7 @@ def set_languages_dict() -> Dict:
     return {lang: "" for lang in languages}
 
 
-for dataset in get_env_values_to_list(os.getenv('DATASETS')):
-    get_all_nameusage_data(int(dataset))
+if __name__ == '__main__':
+
+    for dataset in get_env_values_to_list(os.getenv('DATASETS')):
+        get_all_nameusage_data(int(dataset))
