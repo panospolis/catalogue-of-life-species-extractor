@@ -74,6 +74,13 @@ class API:
             }
         )
 
+    @staticmethod
+    def get_species_vernacular_names(dataset_id: int, species_id: int) -> Dict:
+        """
+        Retrieves species information by species ID in the specified dataset.
+        """
+        return execute_api_request(f"dataset/{dataset_id}/taxon/{species_id}/vernacular")
+
 
 if __name__ == '__main__':
 
@@ -223,8 +230,17 @@ if __name__ == '__main__':
                                                         'authorship': species_obj.get('authorship')
                                                     }
 
+                                                    # Retrieve vernacular names
+                                                    species_vernacular_names = API.get_species_vernacular_names(dataset_id=COL_2025_dataset_id, species_id=species_obj.get('id'))
+                                                    if species_vernacular_names:
+                                                        # Add vernacular names to species dictionary (filtering by LANGUAGES_INCLUDED)
+                                                        for species_vernacular_name in species_vernacular_names:
+                                                            language = species_vernacular_name.get('language')
+                                                            if language in os.getenv('LANGUAGES_INCLUDED'):
+                                                                species_vernacular = species_vernacular_name.get('name')
+                                                                species['vernacular_%s' % language] = species_vernacular
+
                                                     # TODO: retrieve additional information
-                                                    #  - retrieve vernacular names
                                                     #  - retrieve distributions (optional)
                                                     #  - retrieve environments (optional)
 
@@ -232,6 +248,3 @@ if __name__ == '__main__':
                                                     write_species_to_file(species, family_obj.get('id'))
 
                                                 cprint('                     Retrieved and saved %s/%s species ' % (species_count_total_retrieved, species_count_total), 'green')
-
-                                            # sys.exit()
-
