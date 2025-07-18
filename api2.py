@@ -174,34 +174,31 @@ if __name__ == '__main__':
                             cprint('      -> PHYLUM: ' + phylum_name, 'yellow')
 
                             # Retrieve and iterate over classes
-                            class_breakdown = API.get_taxonomy_breakdown(dataset_id=COL_2025_dataset_id, taxon_id=phylum_obj.get('id'))
-                            for class_obj in class_breakdown:
+                            phylum_breakdown = API.get_taxonomy_breakdown(dataset_id=COL_2025_dataset_id, taxon_id=phylum_obj.get('id'))
+                            for class_obj in phylum_breakdown:
                                 class_name = class_obj.get('name')
                                 cprint('         -> CLASS: ' + class_name, 'yellow')
 
-                                # Continue if there are no orders in this class
-                                if len(class_obj.get('children')) == 0:
-                                    cprint('            No orders found in this class', 'red')
-                                    continue
+                                # Note: the children attribute is not 100% reliable (few cases of skipped taxon levels) so we need
+                                # to retrieve the sublevels explicitly with a new API request.
+                                # For example, class "Leptocardii" has no direct children (order), but it contains a family ("Branchiostomatidae")
+                                # and few genera
 
-                                # Iterate over orders
-                                for order_obj in class_obj.get('children', []):
+                                # Retrieve and iterate over orders
+                                class_breakdown = API.get_taxonomy_breakdown(dataset_id=COL_2025_dataset_id, taxon_id=class_obj.get('id'))
+                                for order_obj in class_breakdown:
                                     order_name = order_obj.get('name')
                                     cprint('            -> ORDER: ' + order_name, 'yellow')
 
                                     # Retrieve and iterate over families
-                                    family_breakdown = API.get_taxonomy_breakdown(dataset_id=COL_2025_dataset_id, taxon_id=order_obj.get('id'))
-                                    for family_obj in family_breakdown:
+                                    order_breakdown = API.get_taxonomy_breakdown(dataset_id=COL_2025_dataset_id, taxon_id=order_obj.get('id'))
+                                    for family_obj in order_breakdown:
                                         family_name = family_obj.get('name')
                                         cprint('               -> FAMILY: ' + family_name, 'yellow')
 
-                                        # Continue if there are no genera in this family
-                                        if len(family_obj.get('children')) == 0:
-                                            cprint('                  No genera found in this family', 'blue')
-                                            continue
-
                                         # Retrieve and iterate over genera
-                                        for genus_obj in family_obj.get('children', []):
+                                        family_breakdown = API.get_taxonomy_breakdown(dataset_id=COL_2025_dataset_id, taxon_id=family_obj.get('id'))
+                                        for genus_obj in family_breakdown:
                                             genus_name = genus_obj.get('name')
                                             species_count_total = genus_obj.get('species', 0)
                                             species_count_total_retrieved = 0
