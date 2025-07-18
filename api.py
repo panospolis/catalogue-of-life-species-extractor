@@ -21,7 +21,6 @@ def retrieve_species_data(
         id: int = 1000) -> Optional[Dict]:
     url = (
         f"{os.getenv('API_BASE_URL')}dataset/{dataset_id}/tree/{id}/children")
-    print(url)
     params = {
         # 'catalogueKey': 3,
         # 'extinct': True,
@@ -142,8 +141,6 @@ def get_classification(parsed_record: Dict, record: Dict) -> Dict:
     for cls in record.get('classification', []):
 
         if cls.get('rank') in ranks_to_include:
-            print(ranks_to_include)
-            print(cls)
             parsed_record[cls.get('rank', '')] = cls.get('name', '')
     return parsed_record
 
