@@ -115,11 +115,15 @@ def get_species_list(dataset_id: int, record: Dict) -> Optional[List]:
 
     ## if species_list is not None and 'result' in species_list:
     ##     for species in species_list['result']:
+    valid_record = record.get('usage', {})
+    if 'accepted' in record.get('usage'):
+        valid_record = record.get('usage').get('accepted', {})
     parsed_record = {
-        'id': record.get('id'),
-        'species': record.get('usage').get('name').get('scientificName', {}),
+        'id': valid_record.get('name').get('id'),
+        'species':valid_record.get('name', {}).get('scientificName', {}),
+        'extinct':valid_record.get('extinct', ''),
         'distribution': '',
-        'environments': record.get('usage', {}).get('environments', [])
+        'environments': valid_record.get('environments', [])
     }
 
     parsed_record.update(set_languages_dict())
@@ -128,7 +132,7 @@ def get_species_list(dataset_id: int, record: Dict) -> Optional[List]:
     if info is not None:
         parsed_record = get_common_name(parsed_record, info)
         parsed_record = get_distributions(parsed_record, info)
-        parsed_record = get_classification(parsed_record, record)
+        parsed_record = get_classification(parsed_record, info)
 
     parsed_results.append(parsed_record)
     return parsed_results
@@ -136,7 +140,10 @@ def get_species_list(dataset_id: int, record: Dict) -> Optional[List]:
 
 def get_classification(parsed_record: Dict, record: Dict) -> Dict:
     for cls in record.get('classification', []):
+
         if cls.get('rank') in ranks_to_include:
+            print(ranks_to_include)
+            print(cls)
             parsed_record[cls.get('rank', '')] = cls.get('name', '')
     return parsed_record
 
@@ -188,7 +195,7 @@ def write_to_file(data: List[Dict], filename: str):
 
     file_exists = os.path.exists(f"{os.getenv('PATH_TO_DATA')}/{filename}")
     with open(f"{os.getenv('PATH_TO_DATA')}/{filename}", 'a', newline='', encoding='utf-8') as csvfile:
-        fieldnames = ['id', 'species', 'distribution', 'environments', 'kingdom', 'phylum', 'class', 'order', 'family',
+        fieldnames = ['id', 'species', 'extinct', 'distribution', 'environments', 'kingdom', 'phylum', 'class', 'order', 'family',
                       'genus']
 
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
@@ -199,6 +206,7 @@ def write_to_file(data: List[Dict], filename: str):
             row = {}
             row['id'] = result.get('id', 0)
             row['species'] = result.get('species', '')
+            row['extinct'] = result.get('extinct', '')
             row['distribution'] = result.get('distribution', '')
             row['environments'] = ', '.join(result.get('environments', []))
             row['kingdom'] = result.get('kingdom', '')
