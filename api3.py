@@ -155,7 +155,9 @@ def traverse_genra(genus_id, species_count_total, path, indent):
         if species_by_genus[0]['rank'] != 'species':
             species_by_subgenus = []
             for subgenus in species_by_genus:
-                species_by_subgenus = species_by_subgenus + ((API.get_species_by_genus(dataset_id=COL_2025_dataset_id, genus_id=subgenus['id'], api_limit=limit, api__offset=offset)).get('result'))
+                subgenus_result = (API.get_species_by_genus(dataset_id=COL_2025_dataset_id, genus_id=subgenus['id'], api_limit=limit, api__offset=offset)).get('result')
+                if subgenus_result is not None:
+                    species_by_subgenus = species_by_subgenus + subgenus_result
             species_by_genus = species_by_subgenus
         # Update counters
         species_count_total_retrieved += len(species_by_genus)
