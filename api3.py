@@ -9,6 +9,15 @@ import sys
 
 load_dotenv()
 
+def get_env_values_to_list(env_values: str) -> List[str]:
+    """
+    Converts a comma-separated string of environment values into a list.
+    :param env_values:
+    :return:
+    """
+    return [value.strip() for value in env_values.split(',') if value.strip()]
+
+
 def execute_api_request(
         url: str,
         params: Optional[Dict] = None) -> Optional[Dict]:
@@ -102,6 +111,17 @@ def taxonomy_rank_is_included(rank: str, name: str) -> bool:
         return name in KINGDOM_INCLUDED
     elif rank == "phylum":
         return name in PHYLUM_INCLUDED
+    elif rank == "order":
+        return name not in [
+            'Amblypygi',
+            'Araneae',
+            'Holothyrida',
+            'Opilioacarida',
+            'Opiliones',
+            'Palpigradi',
+            'Sarcoptiformes',
+            'Trombidiformes',
+        ]
     return True
 
 def save_species(species, path):
@@ -122,7 +142,7 @@ def save_species(species, path):
         # Add vernacular names to species dictionary (filtering by LANGUAGES_INCLUDED)
         for species_vernacular_name in species_vernacular_names:
             language = species_vernacular_name.get('language')
-            if language in os.getenv('LANGUAGES_INCLUDED'):
+            if language in get_env_values_to_list(os.getenv('LANGUAGES_INCLUDED')):
                 species_vernacular = species_vernacular_name.get('name')
                 species['vernacular_%s' % language] = species_vernacular
 
