@@ -126,9 +126,9 @@ if __name__ == '__main__':
         # 'Nematomorpha',         # Horsehair worms; parasitic larvae of arthropods
         # 'Nemertea',             # Ribbon worms; mostly marine, with a long eversible proboscis
         # 'Onychophora',          # Velvet worms; soft-bodied, terrestrial predators
-        'Orthonectida'          # Parasitic marine animals with a simple body plan
+        # 'Orthonectida'          # Parasitic marine animals with a simple body plan
         'Phoronida'             # Worm-like marine animals living in tubes
-        'Placozoa'              # Simplest free-living animals; flattened, multicellular organisms
+        # 'Placozoa'              # Simplest free-living animals; flattened, multicellular organisms
         # 'Platyhelminthes',      # Flatworms; soft-bodied, dorsoventrally flattened, often parasitic
         'Porifera'              # Sponges; simple, porous, sessile filter feeders
         'Priapulida',           # Penis worms; burrowing marine predators
@@ -145,7 +145,7 @@ if __name__ == '__main__':
         'Tracheophyta',         # (Vascular plants),"All vascular plants with xylem and phloem; includes ferns, gymnosperms, and angiosperms.
         'Charophyta',           # (Charophyte algae),"Freshwater green algae closely related to land plants."
         'Chlorophyta',          # (Green algae),"Mostly aquatic green algae with chlorophyll a and b, precursors to terrestrial plants."
-        'Glaucophyta',          # (Glaucophyte algae),"Freshwater microscopic algae with plastids retaining peptidoglycan."
+        # 'Glaucophyta',          # (Glaucophyte algae),"Freshwater microscopic algae with plastids retaining peptidoglycan."
         'Rhodophyta',           # (Red algae),"Mostly marine algae with phycobiliproteins as accessory pigments."
     ]
 
