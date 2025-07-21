@@ -23,9 +23,8 @@ def write_species_to_file(data: Dict, suffix: str):
     primary_key_column = 'species'
     # Open CSV file (create if it doesn't exist)
     df = pd.read_csv(filepath) if os.path.exists(filepath) else pd.DataFrame()
-    # Append new species if it does not exist already
-    if primary_key_column not in df.columns or data[primary_key_column] not in df[primary_key_column].values:
-        df = pd.concat([df, pd.DataFrame([data])], ignore_index=True)
+    # Append new species
+    df = pd.concat([df, pd.DataFrame([data])], ignore_index=True)
     # Save
     df.to_csv(filepath, index=False)
 
@@ -84,6 +83,15 @@ if __name__ == "__main__":
     cprint('#########################################################', 'green')
     print('\n')
 
+    # Remove all csv files in the data folder
+    data_folder = os.path.join(CURRENT_PATH, 'data')
+    for file in os.listdir(data_folder):
+        if file.endswith('.csv'):
+            os.remove(os.path.join(data_folder, file))
+    cprint('Data folder cleaned. All CSV files removed.', 'green')
+
+    # TODO: remove downloaded zip file and unzipped folder if they exist when a specific option is provided
+
     # ##########  Download the ZIP file  ##########
     cprint('Downloading the Catalogue of Life database...', 'yellow')
     if not os.path.exists(ZIP_PATH):
@@ -110,12 +118,14 @@ if __name__ == "__main__":
     # ##########  Process NameUsage.tsv to extract species   ##########
     cprint('Processing the NameUsage.tsv file to extract species...', 'yellow')
     name_usage_path = os.path.join(CURRENT_PATH, 'temp', 'COL_database', 'NameUsage.tsv')
-    columns_list = pd.read_csv(name_usage_path, nrows=0, sep='\t').columns.tolist()
+    # Counters
     chunk_size = 1000
     count_all = 0
     count_accepted = 0
-    for chunk in pd.read_csv(name_usage_path, sep='\t', chunksize=chunk_size):  # Read the file in chunks to avoid memory issues
+    # Iterate through the NameUsage.tsv file in chunks to avoid memory issues
+    for chunk in pd.read_csv(name_usage_path, sep='\t', chunksize=chunk_size):
         count_accepted_in_chunk = 0
+        # Process each row in the chunk
         for index, row in chunk.iterrows():
             count_all += 1
             if (row['col:status'] == 'accepted'
@@ -150,7 +160,7 @@ if __name__ == "__main__":
                 # Write species data to file
                 write_species_to_file(species, '%s_%s' % (species['kingdom'], species['phylum']))
 
-        cprint('%s/%s species stored.' % (count_accepted_in_chunk, chunk_size), 'yellow')
+        cprint('Species stored: %s  Total: %s' % (count_accepted_in_chunk, count_accepted), 'yellow')
 
 
     cprint('TOTAL ACCEPTED SPECIES: %s ' % count_accepted, 'green')
