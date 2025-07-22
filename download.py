@@ -5,6 +5,7 @@ import sys
 from termcolor import cprint
 from typing import Dict
 import zipfile
+import csv
 
 """
 This script downloads the Catalogue of Life database, unzips it, and processes the NameUsage.tsv file to extract species information.
@@ -12,6 +13,24 @@ This script downloads the Catalogue of Life database, unzips it, and processes t
 - VernacularName.tsv contains common names for species.
 
 """
+
+def write_append_species_to_file(data: Dict, suffix: str):
+    """
+    Writes/append species data to a CSV file.
+    :param data: Dictionary containing species data.
+    :param suffix: A suffix for the file name (usually a rank ID or name).
+    """
+    filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'species_%s.csv' % suffix)
+
+    file_exists = os.path.exists(filepath)
+
+    with open(filepath, 'a', newline='', encoding='utf-8') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=data.keys())
+
+        if not file_exists:
+            writer.writeheader()
+
+        writer.writerow(data)
 
 def write_species_to_file(data: Dict, suffix: str):
     """
@@ -68,14 +87,13 @@ if __name__ == "__main__":
         'Tardigrada',           # Water bears; microscopic, highly resilient animals
         'Xenacoelomorpha',      # Simple marine worms, close to the base of Bilateria
         # from Plantae kingdom
-        'Glaucophyta',          # Freshwater microscopic algae with plastids retaining peptidoglycan.
+        'Glaucophyta',  # Freshwater microscopic algae with plastids retaining peptidoglycan.
     ]
 
     CLASS_EXCLUDED = []
     ORDER_EXCLUDED = []
     FAMILY_EXCLUDED = []
     GENUS_EXCLUDED = []
-
 
     print('\n')
     cprint('#########################################################', 'green')
@@ -137,7 +155,6 @@ if __name__ == "__main__":
                     and row['col:order'] not in ORDER_EXCLUDED
                     and row['col:family'] not in FAMILY_EXCLUDED
                     and row['col:genus'] not in GENUS_EXCLUDED):
-
                 count_accepted += 1
                 count_accepted_in_chunk += 1
 
@@ -161,7 +178,6 @@ if __name__ == "__main__":
                 write_species_to_file(species, '%s_%s' % (species['kingdom'], species['phylum']))
 
         cprint('Species stored: %s  Total: %s' % (count_accepted_in_chunk, count_accepted), 'yellow')
-
 
     cprint('TOTAL ACCEPTED SPECIES: %s ' % count_accepted, 'green')
 
