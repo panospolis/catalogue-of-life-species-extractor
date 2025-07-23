@@ -14,24 +14,6 @@ This script downloads the Catalogue of Life database, unzips it, and processes t
 
 """
 
-def write_append_species_to_file(data: Dict, suffix: str):
-    """
-    Writes/append species data to a CSV file.
-    :param data: Dictionary containing species data.
-    :param suffix: A suffix for the file name (usually a rank ID or name).
-    """
-    filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'species_%s.csv' % suffix)
-
-    file_exists = os.path.exists(filepath)
-
-    with open(filepath, 'a', newline='', encoding='utf-8') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=data.keys())
-
-        if not file_exists:
-            writer.writeheader()
-
-        writer.writerow(data)
-
 def write_species_to_file(data: Dict, suffix: str):
     """
     Writes species data to a CSV file.
@@ -39,13 +21,12 @@ def write_species_to_file(data: Dict, suffix: str):
     :param suffix: A suffix for the file name (usually a rank ID or name).
     """
     filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'species_%s.csv' % suffix)
-    primary_key_column = 'species'
-    # Open CSV file (create if it doesn't exist)
-    df = pd.read_csv(filepath) if os.path.exists(filepath) else pd.DataFrame()
-    # Append new species
-    df = pd.concat([df, pd.DataFrame([data])], ignore_index=True)
-    # Save
-    df.to_csv(filepath, index=False)
+    file_exists = os.path.exists(filepath)
+    with open(filepath, 'a', newline='', encoding='utf-8') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=data.keys())
+        if not file_exists:
+            writer.writeheader()
+        writer.writerow(data)
 
 
 if __name__ == "__main__":
@@ -55,7 +36,7 @@ if __name__ == "__main__":
     ZIP_PATH = os.path.join(CURRENT_PATH, 'temp', 'COL_database.zip')
 
     KINGDOM_INCLUDED = [
-        # 'Animalia',
+        'Animalia',
         'Plantae',
     ]
     # Note:
