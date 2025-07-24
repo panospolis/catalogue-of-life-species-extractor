@@ -144,14 +144,14 @@ if __name__ == "__main__":
                 species = {
                     'id': row['col:ID'],
                     'name': row['col:scientificName'],
-                    'authorship': row['col:authorship'],
-                    'environment': row['col:environment'],
-                    'genus': row['col:genus'],
-                    'family': row['col:family'],
-                    'order': row['col:order'],
-                    'class': row['col:class'],
-                    'phylum': row['col:phylum'],
-                    'kingdom': row['col:kingdom'],
+                    'authorship': row['col:authorship'] if isinstance(row['col:authorship'], str) else None,
+                    'environment': row['col:environment'] if isinstance(row['col:environment'], str) else None,
+                    'genus': row['col:genus'] if isinstance(row['col:genus'], str) else None,
+                    'family': row['col:family'] if isinstance(row['col:family'], str) else None,
+                    'order': row['col:order'] if isinstance(row['col:order'], str) else None,
+                    'class': row['col:class'] if isinstance(row['col:class'], str) else None,
+                    'phylum': row['col:phylum'] if isinstance(row['col:phylum'], str) else None,
+                    'kingdom': row['col:kingdom'] if isinstance(row['col:kingdom'], str) else None,
                 }
 
                 # TODO: retrieve vernacular names
@@ -161,9 +161,6 @@ if __name__ == "__main__":
 
         cprint('Progressive species count: %s' % count_species, 'blue', end='\r')
     cprint('\nDone. %s species saved.' % count_species, 'green', end='\r')
-
-
-
 
     end_time = time.time()
     print('\n')
