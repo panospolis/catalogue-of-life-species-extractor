@@ -6,8 +6,6 @@ from termcolor import cprint
 from typing import Dict
 import zipfile
 import csv
-import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import polars as pl
 
 """
@@ -144,7 +142,9 @@ if __name__ == "__main__":
     df = pl.read_csv(
         name_usage_path,
         separator='\t',
-        ignore_errors=True
+        ignore_errors=True,
+        infer_schema_length=10000,
+        quote_char=None
     )
 
     filtered_df = df.filter(
@@ -181,7 +181,7 @@ if __name__ == "__main__":
 
         write_append_species_to_file(species, '%s_%s' % (species['kingdom'], species['phylum']))
 
-        cprint('Species stored: %s' % (count_accepted), 'yellow')
+        # cprint('Species stored: %s' % (count_accepted), 'yellow')
 
     cprint('TOTAL ACCEPTED SPECIES: %s ' % count_accepted, 'green')
 
