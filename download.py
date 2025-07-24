@@ -6,6 +6,9 @@ from termcolor import cprint
 from typing import Dict
 import zipfile
 import csv
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import polars as pl
 
 """
 This script downloads the Catalogue of Life database, unzips it, and processes the NameUsage.tsv file to extract species information.
@@ -55,7 +58,7 @@ if __name__ == "__main__":
     ZIP_PATH = os.path.join(CURRENT_PATH, 'temp', 'COL_database.zip')
 
     KINGDOM_INCLUDED = [
-        # 'Animalia',
+        'Animalia',
         'Plantae',
     ]
     # Note:
@@ -83,7 +86,6 @@ if __name__ == "__main__":
         'Priapulida',           # Penis worms; burrowing marine predators
         'Rotifera',             # Microscopic freshwater animals with ciliated wheel-like organs
         'Sipuncula',            # Peanut worms; unsegmented marine burrowers
-        'Sipuncula',            # Peanut worms; unsegmented marine burrowers
         'Tardigrada',           # Water bears; microscopic, highly resilient animals
         'Xenacoelomorpha',      # Simple marine worms, close to the base of Bilateria
         # from Plantae kingdom
@@ -96,6 +98,7 @@ if __name__ == "__main__":
     GENUS_EXCLUDED = []
 
     print('\n')
+    cprint('#########################################################', 'green')
     cprint('#########################################################', 'green')
     cprint('######  CATALOGUE OF lIFE API - Species extractor  ######', 'green')
     cprint('#########################################################', 'green')
@@ -136,48 +139,49 @@ if __name__ == "__main__":
     # ##########  Process NameUsage.tsv to extract species   ##########
     cprint('Processing the NameUsage.tsv file to extract species...', 'yellow')
     name_usage_path = os.path.join(CURRENT_PATH, 'temp', 'COL_database', 'NameUsage.tsv')
-    # Counters
-    chunk_size = 1000
-    count_all = 0
+
+    # use polars to read the NameUsage.tsv file
+    df = pl.read_csv(
+        name_usage_path,
+        separator='\t',
+        ignore_errors=True
+    )
+
+    filtered_df = df.filter(
+        (pl.col('col:status') == 'accepted') &
+        (pl.col('col:rank') == 'species') &
+        ((pl.col('col:extinct') != True) | pl.col('col:extinct').is_null()) &
+        (pl.col('col:kingdom').is_in(KINGDOM_INCLUDED)) &
+        ((~pl.col('col:phylum').is_in(PHYLUM_EXCLUDED)) | pl.col('col:phylum').is_null()) &
+        ((~pl.col('col:class').is_in(CLASS_EXCLUDED)) | pl.col('col:class').is_null()) &
+        ((~pl.col('col:order').is_in(ORDER_EXCLUDED)) | pl.col('col:order').is_null()) &
+        ((~pl.col('col:family').is_in(FAMILY_EXCLUDED)) | pl.col('col:family').is_null()) &
+        ((~pl.col('col:genus').is_in(GENUS_EXCLUDED)) | pl.col('col:genus').is_null())
+    )
+
+    records_found = len(filtered_df)
+    cprint(f'Filtered to {records_found} accepted species', 'green')
+
+    count_accepted_in_chunk = 0
     count_accepted = 0
-    # Iterate through the NameUsage.tsv file in chunks to avoid memory issues
-    for chunk in pd.read_csv(name_usage_path, sep='\t', chunksize=chunk_size):
-        count_accepted_in_chunk = 0
-        # Process each row in the chunk
-        for index, row in chunk.iterrows():
-            count_all += 1
-            if (row['col:status'] == 'accepted'
-                    and row['col:rank'] == 'species'
-                    and row['col:extinct'] != True
-                    and row['col:kingdom'] in KINGDOM_INCLUDED
-                    and row['col:phylum'] not in PHYLUM_EXCLUDED
-                    and row['col:class'] not in CLASS_EXCLUDED
-                    and row['col:order'] not in ORDER_EXCLUDED
-                    and row['col:family'] not in FAMILY_EXCLUDED
-                    and row['col:genus'] not in GENUS_EXCLUDED):
-                count_accepted += 1
-                count_accepted_in_chunk += 1
+    for i, row in enumerate(filtered_df.iter_rows(named=True)):
+        species = {
+            'id': row['col:ID'],
+            'name': row['col:scientificName'],
+            'authorship': row['col:authorship'],
+            'environment': row['col:environment'],
+            'genus': row['col:genus'],
+            'family': row['col:family'],
+            'order': row['col:order'],
+            'class': row['col:class'],
+            'phylum': row['col:phylum'],
+            'kingdom': row['col:kingdom'],
+        }
+        count_accepted += 1
 
-                # Retrieve the species information
-                species = {
-                    'id': row['col:ID'],
-                    'name': row['col:scientificName'],
-                    'authorship': row['col:authorship'],
-                    'environment': row['col:environment'],
-                    'genus': row['col:genus'],
-                    'family': row['col:family'],
-                    'order': row['col:order'],
-                    'class': row['col:class'],
-                    'phylum': row['col:phylum'],
-                    'kingdom': row['col:kingdom'],
-                }
+        write_append_species_to_file(species, '%s_%s' % (species['kingdom'], species['phylum']))
 
-                # TODO: retrieve vernacular names
-
-                # Write species data to file
-                write_species_to_file(species, '%s_%s' % (species['kingdom'], species['phylum']))
-
-        cprint('Species stored: %s  Total: %s' % (count_accepted_in_chunk, count_accepted), 'yellow')
+        cprint('Species stored: %s' % (count_accepted), 'yellow')
 
     cprint('TOTAL ACCEPTED SPECIES: %s ' % count_accepted, 'green')
 
