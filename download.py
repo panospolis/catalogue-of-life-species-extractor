@@ -1,11 +1,12 @@
+import csv
 import os
 import pandas as pd
 import requests
 import sys
 from termcolor import cprint
+import time
 from typing import Dict
 import zipfile
-import csv
 
 """
 This script downloads the Catalogue of Life database, unzips it, and processes the NameUsage.tsv file to extract species information.
@@ -14,13 +15,14 @@ This script downloads the Catalogue of Life database, unzips it, and processes t
 
 """
 
-def write_species_to_file(data: Dict, suffix: str):
+def write_species_to_file(data: Dict, suffix: str = None):
     """
     Writes species data to a CSV file.
     :param data: Dictionary containing species data.
     :param suffix: A suffix for the file name (usually a rank ID or name).
     """
-    filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'species_%s.csv' % suffix)
+    filename = 'species.csv' if suffix is None else 'species_%s.csv' % suffix
+    filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', filename)
     file_exists = os.path.exists(filepath)
     with open(filepath, 'a', newline='', encoding='utf-8') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=data.keys())
@@ -76,11 +78,16 @@ if __name__ == "__main__":
     FAMILY_EXCLUDED = []
     GENUS_EXCLUDED = []
 
+    LANGUAGES_INCLUDED = ['eng', 'spa', 'por', 'fra', 'rus', 'deu', 'ita', 'jpn', 'zho', 'kor']
+
+    CHUNK_SIZE = 3000
+
     print('\n')
     cprint('#########################################################', 'green')
     cprint('######  CATALOGUE OF lIFE API - Species extractor  ######', 'green')
     cprint('#########################################################', 'green')
     print('\n')
+    start_time = time.time()
 
     # Remove all csv files in the data folder
     data_folder = os.path.join(CURRENT_PATH, 'data')
@@ -117,16 +124,11 @@ if __name__ == "__main__":
     # ##########  Process NameUsage.tsv to extract species   ##########
     cprint('Processing the NameUsage.tsv file to extract species...', 'yellow')
     name_usage_path = os.path.join(CURRENT_PATH, 'temp', 'COL_database', 'NameUsage.tsv')
-    # Counters
-    chunk_size = 1000
-    count_all = 0
-    count_accepted = 0
+    count_species = 0
     # Iterate through the NameUsage.tsv file in chunks to avoid memory issues
-    for chunk in pd.read_csv(name_usage_path, sep='\t', chunksize=chunk_size):
-        count_accepted_in_chunk = 0
+    for chunk in pd.read_csv(name_usage_path, sep='\t', chunksize=CHUNK_SIZE):
         # Process each row in the chunk
-        for index, row in chunk.iterrows():
-            count_all += 1
+        for _, row in chunk.iterrows():
             if (row['col:status'] == 'accepted'
                     and row['col:rank'] == 'species'
                     and row['col:extinct'] != True
@@ -136,8 +138,7 @@ if __name__ == "__main__":
                     and row['col:order'] not in ORDER_EXCLUDED
                     and row['col:family'] not in FAMILY_EXCLUDED
                     and row['col:genus'] not in GENUS_EXCLUDED):
-                count_accepted += 1
-                count_accepted_in_chunk += 1
+                count_species += 1
 
                 # Retrieve the species information
                 species = {
@@ -156,12 +157,18 @@ if __name__ == "__main__":
                 # TODO: retrieve vernacular names
 
                 # Write species data to file
-                write_species_to_file(species, '%s_%s' % (species['kingdom'], species['phylum']))
+                write_species_to_file(species)
 
-        cprint('Species stored: %s  Total: %s' % (count_accepted_in_chunk, count_accepted), 'yellow')
+        cprint('Progressive species count: %s' % count_species, 'blue', end='\r')
+    cprint('\nDone. %s species saved.' % count_species, 'green', end='\r')
 
-    cprint('TOTAL ACCEPTED SPECIES: %s ' % count_accepted, 'green')
 
+
+
+    end_time = time.time()
     print('\n')
-    cprint('####################### ALL DONE ########################', 'green')
+    cprint('--------------------------------', 'green')
+    cprint('Total saved species: %s ' % count_species, 'green')
+    cprint('Execution time: %.2fs' % (end_time - start_time), 'green')
+    cprint('--------------------------------', 'green')
     print('\n')
