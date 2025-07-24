@@ -2,7 +2,6 @@ import csv
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
 import polars as pl
-import requests
 import sys
 from termcolor import cprint
 import time
