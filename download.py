@@ -1,7 +1,7 @@
 import csv
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
 import polars as pl
+import requests
 import sys
 from termcolor import cprint
 import time
@@ -96,7 +96,7 @@ if __name__ == "__main__":
     # ##########  Download the ZIP file  ##########
     cprint('Downloading the Catalogue of Life database...', 'yellow')
     if not os.path.exists(ZIP_PATH):
-        response = requests.get(ZIP_PATH)
+        response = requests.get(ZIP_URL)
         if response.status_code == 200:
             with open(ZIP_PATH, 'wb') as file:
                 file.write(response.content)
@@ -123,7 +123,8 @@ if __name__ == "__main__":
     tsv_dataset = pl.read_csv(
         name_usage_path,
         separator='\t',
-        ignore_errors=True
+        ignore_errors=True,
+        quote_char=None
     )
     # Retrieve a filtered list from the TSV file
     filtered_tsv_dataset = tsv_dataset.filter(
