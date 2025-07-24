@@ -1,6 +1,7 @@
 import csv
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
-import pandas as pd
+import polars as pl
 import requests
 import sys
 from termcolor import cprint
@@ -66,7 +67,6 @@ if __name__ == "__main__":
         'Priapulida',           # Penis worms; burrowing marine predators
         'Rotifera',             # Microscopic freshwater animals with ciliated wheel-like organs
         'Sipuncula',            # Peanut worms; unsegmented marine burrowers
-        'Sipuncula',            # Peanut worms; unsegmented marine burrowers
         'Tardigrada',           # Water bears; microscopic, highly resilient animals
         'Xenacoelomorpha',      # Simple marine worms, close to the base of Bilateria
         # from Plantae kingdom
@@ -77,10 +77,6 @@ if __name__ == "__main__":
     ORDER_EXCLUDED = []
     FAMILY_EXCLUDED = []
     GENUS_EXCLUDED = []
-
-    LANGUAGES_INCLUDED = ['eng', 'spa', 'por', 'fra', 'rus', 'deu', 'ita', 'jpn', 'zho', 'kor']
-
-    CHUNK_SIZE = 3000
 
     print('\n')
     cprint('#########################################################', 'green')
@@ -124,42 +120,50 @@ if __name__ == "__main__":
     # ##########  Process NameUsage.tsv to extract species   ##########
     cprint('Processing the NameUsage.tsv file to extract species...', 'yellow')
     name_usage_path = os.path.join(CURRENT_PATH, 'temp', 'COL_database', 'NameUsage.tsv')
+    # Read NameUsage.tsv file using polars libray
+    tsv_dataset = pl.read_csv(
+        name_usage_path,
+        separator='\t',
+        ignore_errors=True
+    )
+    # Retrieve a filtered list from the TSV file
+    filtered_tsv_dataset = tsv_dataset.filter(
+        (pl.col('col:status') == 'accepted') &
+        (pl.col('col:rank') == 'species') &
+        ((pl.col('col:extinct') != True) | pl.col('col:extinct').is_null()) &
+        (pl.col('col:kingdom').is_in(KINGDOM_INCLUDED)) &
+        ((~pl.col('col:phylum').is_in(PHYLUM_EXCLUDED)) | pl.col('col:phylum').is_null()) &
+        ((~pl.col('col:class').is_in(CLASS_EXCLUDED)) | pl.col('col:class').is_null()) &
+        ((~pl.col('col:order').is_in(ORDER_EXCLUDED)) | pl.col('col:order').is_null()) &
+        ((~pl.col('col:family').is_in(FAMILY_EXCLUDED)) | pl.col('col:family').is_null()) &
+        ((~pl.col('col:genus').is_in(GENUS_EXCLUDED)) | pl.col('col:genus').is_null())
+    )
+
+    records_found = len(filtered_tsv_dataset)
+    cprint(f'Filtered to {records_found} accepted species', 'green')
+
     count_species = 0
-    # Iterate through the NameUsage.tsv file in chunks to avoid memory issues
-    for chunk in pd.read_csv(name_usage_path, sep='\t', chunksize=CHUNK_SIZE):
-        # Process each row in the chunk
-        for _, row in chunk.iterrows():
-            if (row['col:status'] == 'accepted'
-                    and row['col:rank'] == 'species'
-                    and row['col:extinct'] != True
-                    and row['col:kingdom'] in KINGDOM_INCLUDED
-                    and row['col:phylum'] not in PHYLUM_EXCLUDED
-                    and row['col:class'] not in CLASS_EXCLUDED
-                    and row['col:order'] not in ORDER_EXCLUDED
-                    and row['col:family'] not in FAMILY_EXCLUDED
-                    and row['col:genus'] not in GENUS_EXCLUDED):
-                count_species += 1
+    for i, row in enumerate(filtered_tsv_dataset.iter_rows(named=True)):
+        species = {
+            'id': row['col:ID'],
+            'name': row['col:scientificName'],
+            'authorship': row['col:authorship'] if isinstance(row['col:authorship'], str) else None,
+            'environment': row['col:environment'] if isinstance(row['col:environment'], str) else None,
+            'genus': row['col:genus'] if isinstance(row['col:genus'], str) else None,
+            'family': row['col:family'] if isinstance(row['col:family'], str) else None,
+            'order': row['col:order'] if isinstance(row['col:order'], str) else None,
+            'class': row['col:class'] if isinstance(row['col:class'], str) else None,
+            'phylum': row['col:phylum'] if isinstance(row['col:phylum'], str) else None,
+            'kingdom': row['col:kingdom'] if isinstance(row['col:kingdom'], str) else None,
+        }
+        count_species += 1
 
-                # Retrieve the species information
-                species = {
-                    'id': row['col:ID'],
-                    'name': row['col:scientificName'],
-                    'authorship': row['col:authorship'] if isinstance(row['col:authorship'], str) else None,
-                    'environment': row['col:environment'] if isinstance(row['col:environment'], str) else None,
-                    'genus': row['col:genus'] if isinstance(row['col:genus'], str) else None,
-                    'family': row['col:family'] if isinstance(row['col:family'], str) else None,
-                    'order': row['col:order'] if isinstance(row['col:order'], str) else None,
-                    'class': row['col:class'] if isinstance(row['col:class'], str) else None,
-                    'phylum': row['col:phylum'] if isinstance(row['col:phylum'], str) else None,
-                    'kingdom': row['col:kingdom'] if isinstance(row['col:kingdom'], str) else None,
-                }
+        # TODO: retrieve vernacular names
 
-                # TODO: retrieve vernacular names
-
-                # Write species data to file
-                write_species_to_file(species)
-
+        # Write species data to file
+        write_species_to_file(species)
         cprint('Progressive species count: %s' % count_species, 'blue', end='\r')
+
     cprint('\nDone. %s species saved.' % count_species, 'green', end='\r')
 
     end_time = time.time()
