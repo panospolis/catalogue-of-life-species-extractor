@@ -205,6 +205,7 @@ if __name__ == "__main__":
         write_species_to_file(species)
         cprint('Species parsed: %s of %s' % (count_species, count_total_species), 'blue', end='\r')
     cprint('\nDone. %s species saved.' % count_species, 'green', end='\r')
+    print('\n')
 
 
     # # ##########  Process VernacularName.tsv to extract vernacular names  ##########
@@ -238,10 +239,10 @@ if __name__ == "__main__":
         # Write vernacular name data to file
         write_vernacular_name_to_file(vernacular_name_data)
         cprint('Vernacular names parsed: %s of %s' % (count_names, count_total_names), 'blue', end='\r')
+    print('\n')
 
     end_time = time.time()
     minutes, seconds = divmod(end_time-start_time, 60)
-    print('\n')
     cprint('--------------------------------', 'green')
     # cprint('Total saved species: %s ' % count_species, 'green')
     cprint('Execution time: %s min. %s sec.' % (int(minutes), int(seconds)), 'green')
