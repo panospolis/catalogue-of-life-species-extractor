@@ -30,6 +30,44 @@ def write_species_to_file(data: Dict, suffix: str = None):
             writer.writeheader()
         writer.writerow(data)
 
+def write_vernacular_name_to_file(data: Dict, suffix: str = None):
+    """
+    Writes vernacular name data to a CSV file.
+    :param data: Dictionary containing vernacular name data.
+    :param suffix: A suffix for the file name (usually a rank ID or name).
+    """
+    filename = 'vernacular_names.csv' if suffix is None else 'vernacular_names_%s.csv' % suffix
+    filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', filename)
+    # Prepare dataframe schema
+    schema = {'species_id': str}
+    for lang in LANGUAGES_INCLUDED:
+        schema['name_%s' % lang] = str
+    # Open CSV file or create if it doesn't exist
+    df = pl.read_csv(filepath) if os.path.exists(filepath) else pl.DataFrame(schema=schema)
+    # If species_id already exists, append vernacular name ONLY
+    if len(df['species_id']) > 0 and data['species_id'] in df['species_id'].to_list():
+        df_row = df.filter(df['species_id'] == data['species_id'])
+        lang_column = next((k for k in data if k.startswith("name_")), None)
+        current_lang_name = df_row[lang_column][0]
+        new_name = data[lang_column]
+        # if the vernacular name for this language is not empty, append it to the existing name
+        if current_lang_name is not None:
+            new_name = '%s, %s' % (current_lang_name, new_name)
+        # Update the vernacular name for the existing species_id
+        df = df.with_columns(
+            polars
+                .when(pl.col('species_id') == data['species_id'])
+                .then(pl.lit(new_name))
+                .otherwise(pl.col(lang_column))
+                .alias(lang_column)
+        )
+    # else append a new row
+    else:
+        df = pl.concat([df, pl.DataFrame([data], schema=list(schema))])
+
+    # Save
+    df.write_csv(filepath)
+
 
 if __name__ == "__main__":
 
@@ -77,6 +115,8 @@ if __name__ == "__main__":
     FAMILY_EXCLUDED = []
     GENUS_EXCLUDED = []
 
+    LANGUAGES_INCLUDED = ['eng', 'spa', 'por', 'fra', 'rus', 'deu', 'ita', 'jpn', 'zho', 'kor']
+
     print('\n')
     cprint('#########################################################', 'green')
     cprint('######  CATALOGUE OF lIFE API - Species extractor  ######', 'green')
@@ -85,10 +125,12 @@ if __name__ == "__main__":
     start_time = time.time()
 
     # Remove all csv files in the data folder
+    cprint('Cleaning the data folder...', 'yellow')
     data_folder = os.path.join(CURRENT_PATH, 'data')
     for file in os.listdir(data_folder):
         if file.endswith('.csv'):
             os.remove(os.path.join(data_folder, file))
+            cprint('File removed %s' % file, 'blue')
     cprint('Data folder cleaned. All CSV files removed.', 'green')
 
     # TODO: remove downloaded zip file and unzipped folder if they exist when a specific option is provided
@@ -120,14 +162,13 @@ if __name__ == "__main__":
     cprint('Processing the NameUsage.tsv file to extract species...', 'yellow')
     name_usage_path = os.path.join(CURRENT_PATH, 'temp', 'COL_database', 'NameUsage.tsv')
     # Read NameUsage.tsv file using polars libray
-    tsv_dataset = pl.read_csv(
-        name_usage_path,
+    species_df = pl.read_csv(name_usage_path,
         separator='\t',
         ignore_errors=True,
         quote_char=None
     )
     # Retrieve a filtered list from the TSV file
-    filtered_tsv_dataset = tsv_dataset.filter(
+    species_filtered_df = species_df.filter(
         (pl.col('col:status') == 'accepted') &
         (pl.col('col:rank') == 'species') &
         ((pl.col('col:extinct') != True) | pl.col('col:extinct').is_null()) &
@@ -138,12 +179,11 @@ if __name__ == "__main__":
         ((~pl.col('col:family').is_in(FAMILY_EXCLUDED)) | pl.col('col:family').is_null()) &
         ((~pl.col('col:genus').is_in(GENUS_EXCLUDED)) | pl.col('col:genus').is_null())
     )
-
-    records_found = len(filtered_tsv_dataset)
-    cprint(f'Filtered to {records_found} accepted species', 'green')
-
+    cprint(f'Filtered to {len(species_filtered_df)} accepted species', 'green')
+    # Iterate through the filtered dataset and write species data to file
     count_species = 0
-    for i, row in enumerate(filtered_tsv_dataset.iter_rows(named=True)):
+    count_total_species = len(species_filtered_df)
+    for i, row in enumerate(species_filtered_df.iter_rows(named=True)):
         species = {
             'id': row['col:ID'],
             'name': row['col:scientificName'],
@@ -157,19 +197,49 @@ if __name__ == "__main__":
             'kingdom': row['col:kingdom'] if isinstance(row['col:kingdom'], str) else None,
         }
         count_species += 1
-
-        # TODO: retrieve vernacular names
-
         # Write species data to file
         write_species_to_file(species)
-        cprint('Progressive species count: %s' % count_species, 'blue', end='\r')
-
+        cprint('Species parsed: %s of %s' % (count_species, count_total_species), 'blue', end='\r')
     cprint('\nDone. %s species saved.' % count_species, 'green', end='\r')
 
+
+    # # ##########  Process VernacularName.tsv to extract vernacular names  ##########
+    cprint('Processing the VernacularName.tsv file to extract vernacular names...', 'yellow')
+    vernacular_name_path = os.path.join(CURRENT_PATH, 'temp', 'COL_database', 'VernacularName.tsv')
+    # Read the VernacularName.tsv file using polars libray
+    vernacular_names_df = pl.read_csv(vernacular_name_path,separator='\t',
+        ignore_errors=True,
+        quote_char=None
+    )
+    # Retrieve a filtered list from the TSV file
+    vernacular_names_filtered_df = vernacular_names_df.filter(
+        pl.col('col:language').is_in(LANGUAGES_INCLUDED)
+    )
+    # Iterate through the filtered dataset and write species data to file
+    count_names = 0
+    count_total_names = len(vernacular_names_filtered_df)
+    for i, row in enumerate(vernacular_names_filtered_df.iter_rows(named=True)):
+        # Process each row
+        count_names += 1
+        name = row['col:name']
+        language = row['col:language']
+        # Compare vernacular name and transliteration: include both if they differ significantly
+        if language in ['jpn', 'zho', 'kor', 'rus'] and isinstance(row['col:transliteration'], str):
+            name = '%s (%s)' % (name, row['col:transliteration'])
+        # Create a dictionary to hold the vernacular name data
+        vernacular_name_data = {
+            'species_id': row['col:taxonID'],
+            'name_%s' % language: name,
+        }
+        # Write vernacular name data to file
+        write_vernacular_name_to_file(vernacular_name_data)
+        cprint('Vernacular names parsed: %s of %s' % (count_names, count_total_names), 'blue', end='\r')
+
     end_time = time.time()
+    minutes, seconds = divmod(end_time-start_time, 60)
     print('\n')
     cprint('--------------------------------', 'green')
-    cprint('Total saved species: %s ' % count_species, 'green')
-    cprint('Execution time: %.2fs' % (end_time - start_time), 'green')
+    # cprint('Total saved species: %s ' % count_species, 'green')
+    cprint('Execution time: %s min. %s sec.' % (int(minutes), int(seconds)), 'green')
     cprint('--------------------------------', 'green')
     print('\n')
