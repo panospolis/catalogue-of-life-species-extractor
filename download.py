@@ -55,7 +55,7 @@ def write_vernacular_name_to_file(data: Dict, suffix: str = None):
             new_name = '%s, %s' % (current_lang_name, new_name)
         # Update the vernacular name for the existing species_id
         df = df.with_columns(
-            polars
+            pl
                 .when(pl.col('species_id') == data['species_id'])
                 .then(pl.lit(new_name))
                 .otherwise(pl.col(lang_column))
