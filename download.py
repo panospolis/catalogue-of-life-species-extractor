@@ -110,8 +110,12 @@ if __name__ == "__main__":
         'Glaucophyta',  # Freshwater microscopic algae with plastids retaining peptidoglycan.
     ]
 
-    CLASS_EXCLUDED = []
-    ORDER_EXCLUDED = []
+    CLASS_EXCLUDED = [
+        'Insecta' # TODO: Insecta class only contains ~1 millions species. Consider exclude
+    ]
+    ORDER_EXCLUDED = [
+        'Sarcoptiformes', 'Trombidiformes' # Acari
+    ]
     FAMILY_EXCLUDED = []
     GENUS_EXCLUDED = []
 
