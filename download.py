@@ -39,24 +39,24 @@ def write_vernacular_name_to_file(data: Dict, suffix: str = None):
     filename = 'vernacular_names.csv' if suffix is None else 'vernacular_names_%s.csv' % suffix
     filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', filename)
     # Prepare dataframe schema
-    schema = {'species_id': str}
+    schema = {'col_id': str}
     for lang in LANGUAGES_INCLUDED:
-        schema['name_%s' % lang] = str
+        schema['vernacular_names_%s' % lang] = str
     # Open CSV file or create if it doesn't exist
     df = pl.read_csv(filepath) if os.path.exists(filepath) else pl.DataFrame(schema=schema)
-    # If species_id already exists, append vernacular name ONLY
-    if len(df['species_id']) > 0 and data['species_id'] in df['species_id'].to_list():
-        df_row = df.filter(df['species_id'] == data['species_id'])
-        lang_column = next((k for k in data if k.startswith("name_")), None)
+    # If col_id already exists, append vernacular name ONLY
+    if len(df['col_id']) > 0 and data['col_id'] in df['col_id'].to_list():
+        df_row = df.filter(df['col_id'] == data['col_id'])
+        lang_column = next((k for k in data if k.startswith('vernacular_names_')), None)
         current_lang_name = df_row[lang_column][0]
         new_name = data[lang_column]
         # if the vernacular name for this language is not empty, append it to the existing name
         if current_lang_name is not None:
             new_name = '%s, %s' % (current_lang_name, new_name)
-        # Update the vernacular name for the existing species_id
+        # Update the vernacular name for the existing col_id
         df = df.with_columns(
             pl
-                .when(pl.col('species_id') == data['species_id'])
+                .when(pl.col('col_id') == data['col_id'])
                 .then(pl.lit(new_name))
                 .otherwise(pl.col(lang_column))
                 .alias(lang_column)
@@ -189,16 +189,16 @@ if __name__ == "__main__":
     count_total_species = len(species_filtered_df)
     for i, row in enumerate(species_filtered_df.iter_rows(named=True)):
         species = {
-            'id': row['col:ID'],
-            'name': row['col:scientificName'],
-            'authorship': row['col:authorship'] if isinstance(row['col:authorship'], str) else None,
-            'environment': row['col:environment'] if isinstance(row['col:environment'], str) else None,
+            'col_id': row['col:ID'],
+            'species': row['col:scientificName'],
             'genus': row['col:genus'] if isinstance(row['col:genus'], str) else None,
             'family': row['col:family'] if isinstance(row['col:family'], str) else None,
             'order': row['col:order'] if isinstance(row['col:order'], str) else None,
             'class': row['col:class'] if isinstance(row['col:class'], str) else None,
             'phylum': row['col:phylum'] if isinstance(row['col:phylum'], str) else None,
             'kingdom': row['col:kingdom'] if isinstance(row['col:kingdom'], str) else None,
+            'authorship': row['col:authorship'] if isinstance(row['col:authorship'], str) else None,
+            'environment': row['col:environment'] if isinstance(row['col:environment'], str) else None,
         }
         count_species += 1
         # Write species data to file
@@ -233,8 +233,8 @@ if __name__ == "__main__":
             name = '%s (%s)' % (name, row['col:transliteration'])
         # Create a dictionary to hold the vernacular name data
         vernacular_name_data = {
-            'species_id': row['col:taxonID'],
-            'name_%s' % language: name,
+            'col_id': row['col:taxonID'],
+            'vernacular_names_%s' % language: name,
         }
         # Write vernacular name data to file
         write_vernacular_name_to_file(vernacular_name_data)
